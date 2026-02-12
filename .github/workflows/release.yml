@@ -1,0 +1,266 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0
+
+env:
+  APP_NAME: ScreenCleanerApp
+  XCODE_PROJECT: ScreenCleanerApp.xcodeproj
+  SCHEME_NAME: ScreenCleanerApp
+
+jobs:
+  build-and-release:
+    runs-on: macos-14  # macOS Sonoma
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # OPTIONAL: Code Signing (Uncomment if you have Apple Developer Program)
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      # - name: Import signing certificate
+      #   env:
+      #     BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      #     P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      #   run: |
+      #     # Create keychain
+      #     KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+      #     security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+      #     security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+      #     security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+      #
+      #     # Import certificate
+      #     CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+      #     echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
+      #     security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+      #     security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      - name: Build application
+        run: |
+          echo "Building $APP_NAME..."
+
+          xcodebuild -project "$XCODE_PROJECT" \
+            -scheme "$SCHEME_NAME" \
+            -configuration Release \
+            -archivePath ./build/$APP_NAME.xcarchive \
+            clean archive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Export application
+        run: |
+          echo "Exporting $APP_NAME..."
+
+          # For unsigned builds, use a simple export
+          xcodebuild -exportArchive \
+            -archivePath ./build/$APP_NAME.xcarchive \
+            -exportPath ./build \
+            -exportOptionsPlist scripts/ExportOptions-unsigned.plist || {
+
+            # Fallback: manually copy if export fails
+            echo "Export failed, using manual copy..."
+            mkdir -p ./build
+            cp -R ./build/$APP_NAME.xcarchive/Products/Applications/$APP_NAME.app ./build/
+          }
+
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # OPTIONAL: Notarization (Uncomment if you have Apple Developer Program)
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      # - name: Notarize application
+      #   env:
+      #     APPLE_ID: ${{ secrets.APPLE_ID }}
+      #     APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      #     TEAM_ID: ${{ secrets.TEAM_ID }}
+      #   run: |
+      #     echo "Notarizing $APP_NAME..."
+      #
+      #     # Zip the app for notarization
+      #     ditto -c -k --keepParent ./build/$APP_NAME.app ./build/$APP_NAME.zip
+      #
+      #     # Submit for notarization
+      #     xcrun notarytool submit ./build/$APP_NAME.zip \
+      #       --apple-id "$APPLE_ID" \
+      #       --team-id "$TEAM_ID" \
+      #       --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+      #       --wait
+      #
+      #     # Staple the notarization ticket
+      #     xcrun stapler staple ./build/$APP_NAME.app
+
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      - name: Create distribution packages
+        id: package
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          mkdir -p dist
+
+          # Create ZIP
+          echo "Creating ZIP package..."
+          cd build
+          ditto -c -k --keepParent "$APP_NAME.app" "../dist/$APP_NAME-v$VERSION.zip"
+          cd ..
+
+          # Calculate ZIP SHA256
+          ZIP_SHA256=$(shasum -a 256 "dist/$APP_NAME-v$VERSION.zip" | awk '{print $1}')
+          echo "zip_sha256=$ZIP_SHA256" >> $GITHUB_OUTPUT
+          echo "ZIP SHA256: $ZIP_SHA256"
+          echo "$ZIP_SHA256" > "dist/$APP_NAME-v$VERSION.zip.sha256"
+
+          # Create DMG
+          echo "Creating DMG..."
+          chmod +x scripts/create-dmg.sh
+          ./scripts/create-dmg.sh "$VERSION"
+
+          # List artifacts
+          echo "Created artifacts:"
+          ls -lh dist/
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+
+          cat > release_notes.md << 'EOF'
+          ## ScreenCleanerApp v$VERSION
+
+          A macOS menu bar application to prevent keyboard input while cleaning your screen.
+
+          ### Installation Methods
+
+          #### Option 1: Direct Download (Recommended)
+          1. Download `ScreenCleanerApp-v$VERSION.zip` below
+          2. Extract and move to Applications folder
+          3. Right-click → Open (first time only)
+          4. Grant Accessibility permissions when prompted
+
+          #### Option 2: Homebrew
+          ```bash
+          brew install --cask screen-cleaner
+          ```
+
+          #### Option 3: One-Line Install Script
+          ```bash
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install.sh | bash
+          ```
+
+          ### Features
+          - 🖥️ Full-screen clean mode to block all keyboard input
+          - ⌨️ Customizable hotkey (default: ⌘⇧L)
+          - 🎯 Menu bar integration
+          - 🔒 Privacy-focused (no data collection)
+          - 🚀 Lightweight and efficient
+
+          ### Requirements
+          - macOS 13.0 (Ventura) or later
+          - Accessibility permissions
+
+          ### First-Time Setup
+          1. Launch the app
+          2. Grant Accessibility permissions:
+             - Open System Settings
+             - Go to Privacy & Security → Accessibility
+             - Enable ScreenCleanerApp
+          3. Use ⌘⇧L to activate clean mode
+
+          ### Verification
+
+          **ZIP SHA256:**
+          ```
+          ${{ steps.package.outputs.zip_sha256 }}
+          ```
+
+          **Verify download:**
+          ```bash
+          shasum -a 256 ScreenCleanerApp-v$VERSION.zip
+          ```
+
+          ### Documentation
+          - [Quick Start Guide](https://github.com/${{ github.repository }}/blob/main/QUICKSTART.md)
+          - [Code Signing Guide](https://github.com/${{ github.repository }}/blob/main/docs/CODE_SIGNING.md)
+          - [Changelog](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+
+          ### Support
+          Report issues at: https://github.com/${{ github.repository }}/issues
+          EOF
+
+          # Expand variables in release notes
+          sed -i "" "s/\$VERSION/$VERSION/g" release_notes.md
+
+          echo "Release notes generated"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ScreenCleanerApp v${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          files: |
+            dist/*.zip
+            dist/*.dmg
+            dist/*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Homebrew Cask
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          SHA256=${{ steps.package.outputs.zip_sha256 }}
+
+          echo "Updating Homebrew Cask formula..."
+
+          # Update version and SHA256 in Cask file
+          sed -i "" "s/version \".*\"/version \"$VERSION\"/" homebrew/Casks/screen-cleaner.rb
+          sed -i "" "s/sha256 \".*\"/sha256 \"$SHA256\"/" homebrew/Casks/screen-cleaner.rb
+
+          # Show updated formula
+          echo "Updated Cask formula:"
+          cat homebrew/Casks/screen-cleaner.rb
+
+      - name: Commit updated Homebrew Cask
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add homebrew/Casks/screen-cleaner.rb
+          git commit -m "Update Homebrew Cask to v${{ steps.version.outputs.version }}" || echo "No changes to commit"
+          git push origin HEAD:main || echo "No changes to push"
+
+      - name: Build summary
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+
+          echo "### ✅ Release v$VERSION Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifacts Created:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ScreenCleanerApp-v$VERSION.zip" >> $GITHUB_STEP_SUMMARY
+          echo "- ScreenCleanerApp-v$VERSION.dmg" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**SHA256 (ZIP):** \`${{ steps.package.outputs.zip_sha256 }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify the release at: https://github.com/${{ github.repository }}/releases/tag/v$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "2. Test the installation methods" >> $GITHUB_STEP_SUMMARY
+          echo "3. Share the release! 🎉" >> $GITHUB_STEP_SUMMARY

@@ -7,6 +7,7 @@
 
 import Foundation
 import AppKit
+import ServiceManagement
 
 /// Manages user preferences and settings
 class UserPreferences: ObservableObject {
@@ -18,6 +19,10 @@ class UserPreferences: ObservableObject {
     private enum Keys {
         static let toggleHotkeyKeyCode = "toggleHotkeyKeyCode"
         static let toggleHotkeyModifiers = "toggleHotkeyModifiers"
+        static let launchAtLogin = "launchAtLogin"
+        static let overlayColor = "overlayColor"
+        static let soundEffectsEnabled = "soundEffectsEnabled"
+        static let notificationsEnabled = "notificationsEnabled"
     }
 
     // Default values (toggle clean mode)
@@ -39,6 +44,36 @@ class UserPreferences: ObservableObject {
         }
     }
 
+    @Published var launchAtLogin: Bool {
+        didSet {
+            defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
+            updateLoginItem()
+        }
+    }
+
+    @Published var overlayColor: OverlayColor {
+        didSet {
+            defaults.set(overlayColor.rawValue, forKey: Keys.overlayColor)
+        }
+    }
+
+    @Published var soundEffectsEnabled: Bool {
+        didSet {
+            defaults.set(soundEffectsEnabled, forKey: Keys.soundEffectsEnabled)
+        }
+    }
+
+    @Published var notificationsEnabled: Bool {
+        didSet {
+            defaults.set(notificationsEnabled, forKey: Keys.notificationsEnabled)
+        }
+    }
+
+    /// Get display string for current hotkey
+    var hotkeyDisplayString: String {
+        formatHotkey(keyCode: toggleHotkeyKeyCode, modifiers: toggleHotkeyModifiers)
+    }
+
     private init() {
         // Load toggle hotkey
         if defaults.object(forKey: Keys.toggleHotkeyKeyCode) != nil {
@@ -48,6 +83,18 @@ class UserPreferences: ObservableObject {
             self.toggleHotkeyKeyCode = defaultToggleKeyCode
             self.toggleHotkeyModifiers = NSEvent.ModifierFlags(rawValue: defaultToggleModifiers)
         }
+
+        // Load other preferences
+        self.launchAtLogin = defaults.bool(forKey: Keys.launchAtLogin)
+        self.soundEffectsEnabled = defaults.object(forKey: Keys.soundEffectsEnabled) == nil ? true : defaults.bool(forKey: Keys.soundEffectsEnabled)
+        self.notificationsEnabled = defaults.object(forKey: Keys.notificationsEnabled) == nil ? true : defaults.bool(forKey: Keys.notificationsEnabled)
+
+        if let colorString = defaults.string(forKey: Keys.overlayColor),
+           let color = OverlayColor(rawValue: colorString) {
+            self.overlayColor = color
+        } else {
+            self.overlayColor = .black
+        }
     }
 
     /// Reset to default hotkeys
@@ -55,6 +102,24 @@ class UserPreferences: ObservableObject {
         toggleHotkeyKeyCode = defaultToggleKeyCode
         toggleHotkeyModifiers = NSEvent.ModifierFlags(rawValue: defaultToggleModifiers)
     }
+
+    /// Update login item status
+    private func updateLoginItem() {
+        #if os(macOS)
+        if #available(macOS 13.0, *) {
+            do {
+                if launchAtLogin {
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                }
+            } catch {
+                print("❌ Failed to update login item: \(error)")
+            }
+        }
+        #endif
+    }
+}
 }
 
 // Notification for hotkey changes
@@ -111,6 +176,32 @@ extension UserPreferences {
         case 49: return "Space"
         case 51: return "Delete"
         default: return "Key\(keyCode)"
+        }
+    }
+}
+
+// MARK: - Overlay Color
+
+enum OverlayColor: String, CaseIterable, Identifiable {
+    case black = "black"
+    case darkGray = "darkGray"
+    case white = "white"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .black: return "黑色"
+        case .darkGray: return "深灰色"
+        case .white: return "白色"
+        }
+    }
+
+    var nsColor: NSColor {
+        switch self {
+        case .black: return .black
+        case .darkGray: return NSColor(white: 0.15, alpha: 1.0)
+        case .white: return .white
         }
     }
 }

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AppKit
+import UserNotifications
 
 /// Coordinates the clean mode functionality (full-screen windows + keyboard interception)
 class CleanModeManager: ObservableObject {
@@ -14,6 +15,47 @@ class CleanModeManager: ObservableObject {
 
     private var fullScreenWindows: [FullScreenWindow] = []
     private var keyboardInterceptor: KeyboardInterceptor?
+
+    init() {
+        requestNotificationPermission()
+    }
+
+    /// Request notification permission
+    private func requestNotificationPermission() {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if granted {
+                print("✅ Notification permission granted")
+            } else if let error = error {
+                print("❌ Notification permission error: \(error)")
+            }
+        }
+    }
+
+    /// Send notification
+    private func sendNotification(title: String, body: String) {
+        // Check if notifications are enabled in preferences
+        guard UserPreferences.shared.notificationsEnabled else {
+            return
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString,
+            content: content,
+            trigger: nil  // Deliver immediately
+        )
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ Failed to send notification: \(error)")
+            }
+        }
+    }
 
     /// Toggle clean mode (start if inactive, stop if active)
     func toggleCleanMode() {
@@ -61,7 +103,16 @@ class CleanModeManager: ObservableObject {
         isCleanModeActive = true
 
         // 3. Play startup sound (optional)
-        NSSound(named: "Purr")?.play()
+        if UserPreferences.shared.soundEffectsEnabled {
+            NSSound(named: "Purr")?.play()
+        }
+
+        // 4. Send notification
+        let hotkeyString = UserPreferences.shared.hotkeyDisplayString
+        sendNotification(
+            title: "清洁模式已启动",
+            body: "按 \(hotkeyString) 退出清洁模式"
+        )
 
         print("✅ Clean mode activated")
     }
@@ -79,14 +130,22 @@ class CleanModeManager: ObservableObject {
         keyboardInterceptor?.stop()
         keyboardInterceptor = nil
 
-        // Close all windows
-        fullScreenWindows.forEach { $0.close() }
+        // Close all windows with fade-out animation
+        fullScreenWindows.forEach { $0.fadeOutAndClose() }
         fullScreenWindows.removeAll()
 
         isCleanModeActive = false
 
         // Play exit sound (optional)
-        NSSound(named: "Pop")?.play()
+        if UserPreferences.shared.soundEffectsEnabled {
+            NSSound(named: "Pop")?.play()
+        }
+
+        // Send notification
+        sendNotification(
+            title: "清洁模式已结束",
+            body: "您现在可以正常使用键盘"
+        )
 
         print("✅ Clean mode deactivated")
     }

@@ -7,12 +7,14 @@
 
 import SwiftUI
 import AppKit
+import Combine
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var statusItem: NSStatusItem?
     var cleanModeManager = CleanModeManager()
     var hotKeyManager: HotKeyManager?
     var settingsWindow: NSWindow?
+    private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("🚀 ScreenCleanerApp launched")
@@ -20,6 +22,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupMenuBar()
         setupGlobalHotKey()
         checkPermissions()
+        observeCleanModeStatus()
 
         // Listen for hotkey changes
         NotificationCenter.default.addObserver(
@@ -28,6 +31,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             name: .hotkeyChanged,
             object: nil
         )
+    }
+
+    private func observeCleanModeStatus() {
+        // Observe clean mode status changes
+        cleanModeManager.$isCleanModeActive
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isActive in
+                self?.updateMenuBarIcon(isActive: isActive)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func updateMenuBarIcon(isActive: Bool) {
+        if let button = statusItem?.button {
+            if isActive {
+                // Active state: filled icon with green tint
+                button.image = NSImage(systemSymbolName: "sparkles.rectangle.stack.fill",
+                                      accessibilityDescription: "Cleaning Active")
+                button.contentTintColor = .systemGreen
+            } else {
+                // Inactive state: normal icon
+                button.image = NSImage(systemSymbolName: "sparkles",
+                                      accessibilityDescription: "Screen Cleaner")
+                button.contentTintColor = nil
+            }
+        }
     }
 
     private func setupMenuBar() {
@@ -149,7 +178,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let hostingController = NSHostingController(rootView: settingsView)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 520),
+            contentRect: NSRect(x: 0, y: 0, width: 460, height: 640),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false

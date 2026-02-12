@@ -65,6 +65,68 @@ struct SettingsView: View {
                 .padding(10)
             }
 
+            // Appearance section
+            GroupBox(label: Label("外观", systemImage: "paintbrush").font(.subheadline)) {
+                VStack(spacing: 12) {
+                    // Overlay color
+                    HStack {
+                        Text("覆盖层颜色")
+                            .font(.caption)
+
+                        Spacer()
+
+                        Picker("", selection: $preferences.overlayColor) {
+                            ForEach(OverlayColor.allCases) { color in
+                                Text(color.displayName).tag(color)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 200)
+                    }
+                }
+                .padding(10)
+            }
+
+            // Behavior section
+            GroupBox(label: Label("行为", systemImage: "gearshape").font(.subheadline)) {
+                VStack(spacing: 12) {
+                    // Launch at login
+                    Toggle(isOn: $preferences.launchAtLogin) {
+                        HStack {
+                            Text("开机启动")
+                                .font(.caption)
+                            Spacer()
+                        }
+                    }
+                    .toggleStyle(.switch)
+
+                    Divider()
+
+                    // Sound effects
+                    Toggle(isOn: $preferences.soundEffectsEnabled) {
+                        HStack {
+                            Text("声音效果")
+                                .font(.caption)
+                            Spacer()
+                        }
+                    }
+                    .toggleStyle(.switch)
+
+                    Divider()
+
+                    // Notifications
+                    Toggle(isOn: $preferences.notificationsEnabled) {
+                        HStack {
+                            Text("系统通知")
+                                .font(.caption)
+                            Spacer()
+                        }
+                    }
+                    .toggleStyle(.switch)
+                }
+                .padding(10)
+            }
+
             // Permissions section
             GroupBox(label: Label("权限", systemImage: "lock.shield").font(.subheadline)) {
                 HStack {
@@ -122,7 +184,7 @@ struct SettingsView: View {
                 .foregroundColor(.secondary.opacity(0.6))
         }
         .padding(16)
-        .frame(width: 460, height: 520)
+        .frame(width: 460, height: 640)
         .onAppear {
             hasPermission = PermissionManager.shared.checkAccessibilityPermission()
         }
