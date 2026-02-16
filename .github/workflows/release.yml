@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'  # Trigger on version tags like v1.0.0
 
+# Add permissions for creating releases and updating contents
+permissions:
+  contents: write
+  packages: write
+
 env:
   APP_NAME: ScreenCleanerApp
   XCODE_PROJECT: ScreenCleanerApp.xcodeproj
