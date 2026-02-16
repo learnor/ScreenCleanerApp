@@ -58,33 +58,23 @@ jobs:
         run: |
           echo "Building $APP_NAME..."
 
-          # Create build directory
-          mkdir -p ./build
-
+          # Build directly to DerivedData
           xcodebuild -project "$XCODE_PROJECT" \
             -scheme "$SCHEME_NAME" \
             -configuration Release \
-            -archivePath ./build/$APP_NAME.xcarchive \
-            clean archive \
+            -derivedDataPath ./DerivedData \
+            clean build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Export application
-        run: |
-          echo "Exporting $APP_NAME..."
+          # Copy built app to build directory
+          mkdir -p ./build
+          cp -R ./DerivedData/Build/Products/Release/$APP_NAME.app ./build/
 
-          # For unsigned builds, use a simple export
-          xcodebuild -exportArchive \
-            -archivePath ./build/$APP_NAME.xcarchive \
-            -exportPath ./build \
-            -exportOptionsPlist scripts/ExportOptions-unsigned.plist || {
-
-            # Fallback: manually copy if export fails
-            echo "Export failed, using manual copy..."
-            mkdir -p ./build
-            cp -R ./build/$APP_NAME.xcarchive/Products/Applications/$APP_NAME.app ./build/
-          }
+          # Verify app was copied
+          ls -la ./build/
+          echo "App bundle: ./build/$APP_NAME.app"
 
       # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       # OPTIONAL: Notarization (Uncomment if you have Apple Developer Program)
