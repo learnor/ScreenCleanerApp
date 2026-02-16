@@ -58,6 +58,9 @@ jobs:
         run: |
           echo "Building $APP_NAME..."
 
+          # Create build directory
+          mkdir -p ./build
+
           xcodebuild -project "$XCODE_PROJECT" \
             -scheme "$SCHEME_NAME" \
             -configuration Release \
