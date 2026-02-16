@@ -1,5 +1,7 @@
 # ScreenCleanerApp 🧹✨
 
+English | [简体中文](README_ZH.md)
+
 A macOS menu bar app that lets you clean your Mac screen without worrying about accidental keyboard and trackpad inputs.
 
 ## Features
@@ -7,10 +9,18 @@ A macOS menu bar app that lets you clean your Mac screen without worrying about 
 - **One-Click Clean Mode**: Start cleaning with a single click or keyboard shortcut
 - **Full-Screen Black Overlay**: Covers all connected displays
 - **Complete Input Blocking**: Intercepts all keyboard inputs during clean mode
-- **Safe Exit**: Only responds to specific key combination (⌘ + ⌥ + Esc)
-- **Global Hotkey**: Quick start with ⌘ + Shift + L
+- **Safe Exit**: Use customizable hotkey to exit (default: ⌘⇧L)
+- **Global Hotkey**: Quick start with ⌘⇧L
 - **Multi-Display Support**: Automatically covers all connected screens
 - **Menu Bar Integration**: Minimal, unobtrusive interface
+- **Status Indicator**: Menu bar icon changes when clean mode is active
+- **System Notifications**: Friendly notifications on start/stop
+- **Smooth Animations**: Fade-in/fade-out transitions
+- **Customizable Settings**:
+  - Launch at login
+  - Overlay color (black/dark gray/white)
+  - Sound effects toggle
+  - Notifications toggle
 
 ## Requirements
 
@@ -19,7 +29,33 @@ A macOS menu bar app that lets you clean your Mac screen without worrying about 
 
 ## Installation
 
-### Building from Source
+### Option 1: Direct Download (Recommended)
+
+1. Visit the [Releases page](https://github.com/learnor/ScreenCleanerApp/releases)
+2. Download the latest `ScreenCleanerApp-v1.0.0.zip`
+3. Extract and move the app to your Applications folder
+4. **First launch**: Right-click the app → Select "Open"
+5. Click "Open" in the security dialog
+
+### Option 2: One-Line Install Script
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/learnor/ScreenCleanerApp/main/scripts/install.sh | bash
+```
+
+This script will automatically:
+- Check your macOS version
+- Download the latest release
+- Install to Applications folder
+- Remove quarantine attributes
+
+### Option 3: Homebrew Cask
+
+```bash
+brew install --cask https://raw.githubusercontent.com/learnor/ScreenCleanerApp/main/homebrew/Casks/screen-cleaner.rb
+```
+
+### Option 4: Building from Source
 
 1. Clone or download this repository
 2. Open `ScreenCleanerApp.xcodeproj` in Xcode
@@ -45,9 +81,11 @@ On first launch, you'll be prompted to grant Accessibility permission:
 
 ### Exiting Clean Mode
 
-Press ⌘ + ⌥ + Esc to exit clean mode and return to normal operation.
+Press **⌘⇧L** (the same hotkey) again to exit clean mode and return to normal operation.
 
-⚠️ **Important**: This is the ONLY way to exit clean mode. All other inputs will be blocked.
+**Alternative**: Press ESC 9 times in a row (with gaps allowed).
+
+⚠️ **Important**: Only the exit hotkey will work in clean mode. All other inputs will be blocked.
 
 ## How It Works
 
