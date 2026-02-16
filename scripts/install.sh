@@ -14,7 +14,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-REPO_OWNER="YOUR_USERNAME"  # TODO: Replace with your GitHub username
+REPO_OWNER="learnor"
 REPO_NAME="ScreenCleanerApp"
 APP_NAME="ScreenCleanerApp"
 INSTALL_DIR="/Applications"

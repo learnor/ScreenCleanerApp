@@ -2,10 +2,10 @@ cask "screen-cleaner" do
   version "1.0.0"
   sha256 "YOUR_SHA256_HERE"  # Will be updated by release workflow
 
-  url "https://github.com/YOUR_USERNAME/ScreenCleanerApp/releases/download/v#{version}/ScreenCleanerApp-v#{version}.zip"
+  url "https://github.com/learnor/ScreenCleanerApp/releases/download/v#{version}/ScreenCleanerApp-v#{version}.zip"
   name "ScreenCleanerApp"
   desc "Menu bar app to prevent keyboard input while cleaning your screen"
-  homepage "https://github.com/YOUR_USERNAME/ScreenCleanerApp"
+  homepage "https://github.com/learnor/ScreenCleanerApp"
 
   livecheck do
     url :url
@@ -40,6 +40,6 @@ cask "screen-cleaner" do
     Default hotkey: ⌘⇧L (Command + Shift + L)
 
     For more information, visit:
-      https://github.com/YOUR_USERNAME/ScreenCleanerApp
+      https://github.com/learnor/ScreenCleanerApp
   EOS
 end
