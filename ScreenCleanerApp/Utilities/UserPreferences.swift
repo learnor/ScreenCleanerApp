@@ -120,7 +120,6 @@ class UserPreferences: ObservableObject {
         #endif
     }
 }
-}
 
 // Notification for hotkey changes
 extension Notification.Name {
