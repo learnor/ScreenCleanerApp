@@ -1,6 +1,6 @@
 cask "screen-cleaner" do
   version "1.0.0"
-  sha256 "YOUR_SHA256_HERE"  # Will be updated by release workflow
+  sha256 "18d9d43113794748c2ccb08e742abb8cebf52fe1424e5b6af6176565fc844b3e"  # Will be updated by release workflow
 
   url "https://github.com/learnor/ScreenCleanerApp/releases/download/v#{version}/ScreenCleanerApp-v#{version}.zip"
   name "ScreenCleanerApp"
